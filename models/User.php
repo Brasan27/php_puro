@@ -134,23 +134,27 @@
                 $sql = 'SELECT
                             r.rol_code,
                             r.rol_name,
-                            user_code,
-                            user_name,
-                            user_lastname,
-                            user_id,
-                            user_email,
-                            user_pass,
-                            user_state
+                            u.user_code,
+                            u.user_name,
+                            u.user_lastname,
+                            u.user_id,
+                            u.user_email,
+                            u.user_pass,
+                            u.user_state
                         FROM ROLES AS r
                         INNER JOIN USERS AS u
-                        on r.rol_code = u.rol_code
-                        WHERE user_email = :userEmail AND user_pass = :userPass';
+                            ON r.rol_code = u.rol_code
+                        WHERE u.user_email = :userEmail';
+
                 $stmt = $this->dbh->prepare($sql);
                 $stmt->bindValue('userEmail', $this->getUserEmail());
-                $stmt->bindValue('userPass', sha1($this->getUserPass()));
                 $stmt->execute();
-                $userDb = $stmt->fetch();
-                if ($userDb) {
+
+                $userDb = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                // Validamos la contraseña con password_verify
+                if ($userDb && password_verify($this->getUserPass(), $userDb['user_pass'])) {
+
                     $user = new User(
                         $userDb['rol_code'],
                         $userDb['rol_name'],
@@ -162,13 +166,18 @@
                         $userDb['user_pass'],
                         $userDb['user_state']
                     );
+
                     return $user;
-                } else {
-                    return false;
                 }
+
+                // Si no hay usuario o la contraseña no coincide
+                return false;
+
             } catch (Exception $e) {
                 die($e->getMessage());
             }
+        }
+
         }
 
         # RF03_CU03 - Registrar Rol
@@ -248,6 +257,7 @@
         }
 
         # RF08_CU08 - Registrar Usuario
+
         public function create_user(){
             try {
                 $sql = 'INSERT INTO USERS VALUES (
@@ -260,20 +270,27 @@
                             :userPass,
                             :userState
                         )';
+
                 $stmt = $this->dbh->prepare($sql);
-                $stmt->bindValue('rolCode', $this->getRolCode());
-                $stmt->bindValue('userCode', $this->getUserCode());
-                $stmt->bindValue('userName', $this->getUserName());
+                $stmt->bindValue('rolCode',      $this->getRolCode());
+                $stmt->bindValue('userCode',     $this->getUserCode());
+                $stmt->bindValue('userName',     $this->getUserName());
                 $stmt->bindValue('userLastName', $this->getUserLastName());
-                $stmt->bindValue('userId', $this->getUserId());
-                $stmt->bindValue('userEmail', $this->getUserEmail());
-                $stmt->bindValue('userPass', sha1($this->getUserPass()));
-                $stmt->bindValue('userState', $this->getUserState());
+                $stmt->bindValue('userId',       $this->getUserId());
+                $stmt->bindValue('userEmail',    $this->getUserEmail());
+
+                // Hasheamos la contraseña en lugar de usar sha1
+                $hashedPass = password_hash($this->getUserPass(), PASSWORD_DEFAULT);
+                $stmt->bindValue('userPass',     $hashedPass);
+
+                $stmt->bindValue('userState',    $this->getUserState());
                 $stmt->execute();
+
             } catch (Exception $e) {
                 die($e->getMessage());
             }
         }
+
 
         # RF09_CU09 - Consultar Usuarios
         public function read_users(){
@@ -352,28 +369,34 @@
         }
 
          # RF11_CU11 - Actualizar usuario
-         public function update_user(){
+
+        public function update_user(){
             try {
                 $sql = 'UPDATE USERS SET
-                            rol_code = :rolCode,
-                            user_code = :userCode,
-                            user_name = :userName,
+                            rol_code      = :rolCode,
+                            user_code     = :userCode,
+                            user_name     = :userName,
                             user_lastname = :userLastName,
-                            user_id = :userId,
-                            user_email = :userEmail,
-                            user_pass = :userPass,
-                            user_state = :userState
+                            user_id       = :userId,
+                            user_email    = :userEmail,
+                            user_pass     = :userPass,
+                            user_state    = :userState
                         WHERE user_code = :userCode';
+
                 $stmt = $this->dbh->prepare($sql);
-                $stmt->bindValue('rolCode', $this->getRolCode());
-                $stmt->bindValue('userCode', $this->getUserCode());
-                $stmt->bindValue('userName', $this->getUserName());
+                $stmt->bindValue('rolCode',      $this->getRolCode());
+                $stmt->bindValue('userCode',     $this->getUserCode());
+                $stmt->bindValue('userName',     $this->getUserName());
                 $stmt->bindValue('userLastName', $this->getUserLastName());
-                $stmt->bindValue('userId', $this->getUserId());
-                $stmt->bindValue('userEmail', $this->getUserEmail());
-                $stmt->bindValue('userPass', sha1($this->getUserPass()));
-                $stmt->bindValue('userState', $this->getUserState());
+                $stmt->bindValue('userId',       $this->getUserId());
+                $stmt->bindValue('userEmail',    $this->getUserEmail());
+
+                $hashedPass = password_hash($this->getUserPass(), PASSWORD_DEFAULT);
+                $stmt->bindValue('userPass',     $hashedPass);
+
+                $stmt->bindValue('userState',    $this->getUserState());
                 $stmt->execute();
+
             } catch (Exception $e) {
                 die($e->getMessage());
             }

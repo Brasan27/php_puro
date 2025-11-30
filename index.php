@@ -3,101 +3,53 @@
     session_start();
     // session_destroy();
 
-    // Siempre usa rutas absolutas
     require_once __DIR__ . "/models/DataBase.php";
 
-    /**
-     * Lista blanca de controladores permitidos.
-     * Agrega aquí todos los controladores válidos de tu aplicación.
-     */
-    $allowedControllers = [
-        'Landing' => [
-            'file'  => __DIR__ . '/controllers/Landing.php',
-            'class' => 'Landing',
-            // acciones permitidas para este controlador
-            'actions' => ['main'] // agrega más si las tienes: 'detalle', 'contacto', etc.
-        ],
-        'Login' => [
-            'file'  => __DIR__ . '/controllers/Login.php',
-            'class' => 'Login',
-            'actions' => ['main'] // agrega las acciones válidas: 'main', 'auth', etc.
-        ],
-        // 'OtroControlador' => [
-        //     'file'  => __DIR__ . '/controllers/OtroControlador.php',
-        //     'class' => 'OtroControlador',
-        //     'actions' => ['main', 'listar', 'ver']
-        // ],
-    ];
+    // Controlador por defecto
+    $controller = isset($_REQUEST['c']) ? $_REQUEST['c'] : "Landing";
+    $route_controller = __DIR__ . "/controllers/" . $controller . ".php";
 
-    // 1. Leer parámetro del controlador (GET es suficiente aquí)
-    $controllerKey = isset($_GET['c']) ? $_GET['c'] : 'Landing';
+    if (file_exists($route_controller)) {
 
-    // 2. Validar contra la lista blanca; si no existe, usar uno seguro por defecto
-    if (!array_key_exists($controllerKey, $allowedControllers)) {
-        $controllerKey = 'Landing';
-    }
-
-    $controllerConfig  = $allowedControllers[$controllerKey];
-    $route_controller  = $controllerConfig['file'];
-    $controllerClass   = $controllerConfig['class'];
-    $allowedActions    = $controllerConfig['actions'];
-
-    // 3. Verificar que el archivo realmente exista y sea legible
-    if (is_readable($route_controller)) {
-        $view = $controllerKey;
+        $view = $controller;
         require_once $route_controller;
 
-        // Instanciar el controlador
-        $controller = new $controllerClass;
+        // Instanciar controlador
+        $controller = new $controller;
+        $action = isset($_REQUEST['a']) ? $_REQUEST['a'] : 'main';
 
-        // 4. Acción: también controlada por lista blanca
-        $action = isset($_GET['a']) ? $_GET['a'] : 'main';
-        if (!in_array($action, $allowedActions, true)) {
-            $action = 'main';
-        }
-
-        // --- Vistas públicas ---
+        // Vistas públicas (sin sesión)
         if ($view === 'Landing' || $view === 'Login') {
+
             require_once __DIR__ . "/views/company/header.view.php";
-            call_user_func([$controller, $action]);
+            call_user_func(array($controller, $action));
             require_once __DIR__ . "/views/company/footer.view.php";
 
-        // --- Vistas según rol (sesión ya controlada del lado servidor) ---
+        // Vistas con sesión (roles)
         } elseif (!empty($_SESSION['session'])) {
+
             require_once __DIR__ . "/models/User.php";
-            $profile  = unserialize($_SESSION['profile']);
+            // OJO: aquí quitamos el unserialize inseguro
+            // $profile  = unserialize($_SESSION['profile']);  // <- eliminado
             $session  = $_SESSION['session'];
 
-            /**
-             * Opcional (recomendado): lista blanca de plantillas de rol.
-             * Así también evitas concatenar $session en los require.
-             */
-            $roleTemplates = [
-                'admin' => [
-                    'header' => __DIR__ . '/views/roles/admin/header.view.php',
-                    'footer' => __DIR__ . '/views/roles/admin/footer.view.php',
-                ],
-                'user' => [
-                    'header' => __DIR__ . '/views/roles/user/header.view.php',
-                    'footer' => __DIR__ . '/views/roles/user/footer.view.php',
-                ],
-                // Agrega aquí el resto de roles...
-            ];
+            // Armamos la ruta de las vistas según el rol en sesión
+            $headerRole = __DIR__ . "/views/roles/" . $session . "/header.view.php";
+            $footerRole = __DIR__ . "/views/roles/" . $session . "/footer.view.php";
 
-            if (!isset($roleTemplates[$session])) {
-                // Si el rol no es válido, puedes redirigir o usar un rol por defecto
+            if (file_exists($headerRole) && file_exists($footerRole)) {
+                require_once $headerRole;
+                call_user_func(array($controller, $action));
+                require_once $footerRole;
+            } else {
+                // Si el rol no tiene plantillas válidas, redirecciona al login
                 header("Location: ?");
-                ob_end_flush();
-                exit;
             }
-
-            require_once $roleTemplates[$session]['header'];
-            call_user_func([$controller, $action]);
-            require_once $roleTemplates[$session]['footer'];
 
         } else {
             header("Location: ?");
         }
+
     } else {
         header("Location: ?");
     }
