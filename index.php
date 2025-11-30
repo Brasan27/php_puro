@@ -1,57 +1,71 @@
 <?php
     ob_start();
     session_start();
-    // session_destroy();
 
     require_once __DIR__ . "/models/DataBase.php";
 
-    // Controlador por defecto
-    $controller = isset($_REQUEST['c']) ? $_REQUEST['c'] : "Landing";
+    // 🔐 Lista blanca de controladores permitidos
+    $allowedControllers = [
+        "Landing",
+        "Login",
+        "Dashboard",
+        "User",
+        "Role",
+        "Company",
+        "Product"
+    ];
+
+    // 🔒 Sanitizar parámetro
+    $controller = $_GET['c'] ?? "Landing";
+
+    // 🔐 Validar nombre contra whitelist
+    if (!in_array($controller, $allowedControllers, true)) {
+        $controller = "Landing";  // fallback seguro
+    }
+
+    // Rutas
     $route_controller = __DIR__ . "/controllers/" . $controller . ".php";
 
     if (file_exists($route_controller)) {
-
         $view = $controller;
         require_once $route_controller;
 
         // Instanciar controlador
-        $controller = new $controller;
-        $action = isset($_REQUEST['a']) ? $_REQUEST['a'] : 'main';
+        if (class_exists($controller)) {
+            $controllerInstance = new $controller();
 
-        // Vistas públicas (sin sesión)
-        if ($view === 'Landing' || $view === 'Login') {
+            $action = $_GET['a'] ?? 'main';
 
-            require_once __DIR__ . "/views/company/header.view.php";
-            call_user_func(array($controller, $action));
-            require_once __DIR__ . "/views/company/footer.view.php";
-
-        // Vistas con sesión (roles)
-        } elseif (!empty($_SESSION['session'])) {
-
-            require_once __DIR__ . "/models/User.php";
-            // OJO: aquí quitamos el unserialize inseguro
-            // $profile  = unserialize($_SESSION['profile']);  // <- eliminado
-            $session  = $_SESSION['session'];
-
-            // Armamos la ruta de las vistas según el rol en sesión
-            $headerRole = __DIR__ . "/views/roles/" . $session . "/header.view.php";
-            $footerRole = __DIR__ . "/views/roles/" . $session . "/footer.view.php";
-
-            if (file_exists($headerRole) && file_exists($footerRole)) {
-                require_once $headerRole;
-                call_user_func(array($controller, $action));
-                require_once $footerRole;
-            } else {
-                // Si el rol no tiene plantillas válidas, redirecciona al login
-                header("Location: ?");
+            // Solo métodos públicos del controlador
+            if (!method_exists($controllerInstance, $action)) {
+                $action = 'main';
             }
 
-        } else {
-            header("Location: ?");
+            // Vistas públicas
+            if ($view === 'Landing' || $view === 'Login') {
+                require_once __DIR__ . "/views/company/header.view.php";
+                call_user_func([$controllerInstance, $action]);
+                require_once __DIR__ . "/views/company/footer.view.php";
+
+            } elseif (!empty($_SESSION['session'])) {
+
+                require_once __DIR__ . "/models/User.php";
+
+                $session = $_SESSION['session'];
+
+                require_once __DIR__ . "/views/roles/" . $session . "/header.view.php";
+                call_user_func([$controllerInstance, $action]);
+                require_once __DIR__ . "/views/roles/" . $session . "/footer.view.php";
+
+            } else {
+                header("Location:?");
+                exit;
+            }
         }
 
     } else {
-        header("Location: ?");
+        header("Location:?");
+        exit;
     }
 
     ob_end_flush();
