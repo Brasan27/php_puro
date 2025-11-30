@@ -1,32 +1,32 @@
 <?php
-    class DataBase{
-        #  Conexión Local
-        // public static function connection(){
-        //     $hostname = "localhost";
-        //     $port = "3306";
-        //     $database = "database_php";
-        //     $username = "root";
-        //     $password = "";
-		// 	$pdo = new PDO("mysql:host=$hostname;port=$port;dbname=$database;charset=utf8",$username,$password);
-		// 	$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-		// 	return $pdo;
-		// }
-        
-        ## Conexión Azure
-        public static function connection(){
-            $hostname = "serverphplimpio.mysql.database.azure.com";
-            $port = "3306";
-            $database = "database_php";
-            $username = "admin_database";
-            $password = "Admin12345";
-            $options = array(
-                PDO::MYSQL_ATTR_SSL_CA => 'assets/database/DigiCertGlobalRootG2.crt.pem'
-            );
-            $pdo = new PDO("mysql:host=$hostname;port=$port;dbname=$database;charset=utf8",$username,$password,$options);
-                $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                return $pdo;
+class DataBase
+{
+    // Conexión Azure
+    public static function connection()
+    {
+        // Puedes dejar host/puerto/bd fijos si quieres
+        $hostname = getenv('DB_HOST') ?: 'serverphplimpio.mysql.database.azure.com';
+        $port     = getenv('DB_PORT') ?: '3306';
+        $database = getenv('DB_NAME') ?: 'database_php';
+
+        // Estos SÍ deben venir de variables de entorno
+        $username = getenv('DB_USER');
+        $password = getenv('DB_PASSWORD');
+
+        if ($username === false || $password === false) {
+            throw new RuntimeException('DB_USER o DB_PASSWORD no están definidos en las variables de entorno.');
         }
-        
-        ## https://php-limpio-fpeccygaf2czhjbg.canadacentral-01.azurewebsites.net/
-	}
+
+        $options = array(
+            PDO::MYSQL_ATTR_SSL_CA => __DIR__ . '/../assets/database/DigiCertGlobalRootG2.crt.pem',
+        );
+
+        $dsn = "mysql:host=$hostname;port=$port;dbname=$database;charset=utf8";
+
+        $pdo = new PDO($dsn, $username, $password, $options);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        return $pdo;
+    }
+}
 ?>
