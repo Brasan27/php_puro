@@ -33,5 +33,5 @@ jobs:
         with:
           args: >
             -Dsonar.organization=brasan27
-            -Dsonar.projectKey=brasan27_php_puro
+            -Dsonar.projectKey=php_puro
 
