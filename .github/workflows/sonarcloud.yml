@@ -26,7 +26,12 @@ jobs:
           java-version: '17'
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarcloud-github-action@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN:  ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # lo da GitHub
+          SONAR_TOKEN:  ${{ secrets.SONAR_TOKEN }}    # lo creaste en Secrets
+        with:
+          args: >
+            -Dsonar.organization=brasan27
+            -Dsonar.projectKey=brasan27_php_puro
+
